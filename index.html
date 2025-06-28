@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Resilience | A Report by the Strategic Supply Chain Taskforce</title>
+    
+    <!-- FONT & ICONS -->
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600&f[]=inter@400,500,600,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* ------------------------------ */
+        /* --- 1. CORE & SETUP (COMMAND CENTER THEME) --- */
+        /* ------------------------------ */
+        :root {
+            --bg: #0A0D12;
+            --glass-bg: rgba(22, 25, 30, 0.5);
+            --border: rgba(255, 255, 255, 0.1);
+            --glow-border: rgba(0, 127, 255, 0.3);
+            --text-primary: #f1f3f6;
+            --text-secondary: #a0b0c4;
+            --accent-start: #007FFF;
+            --accent-end: #8763F3;
+            --accent-green: #30D158;
+            --accent-orange: #FF9F0A;
+            --accent-red: #FF453A;
+            --font-display: 'Clash Display', sans-serif;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            overflow: hidden;
+        }
+        
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+            opacity: 0.3;
+        }
+
+        .presentation-container {
+            height: 100vh;
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        /* ------------------------------ */
+        /* --- 2. LAYOUT & STRUCTURE --- */
+        /* ------------------------------ */
+        .slide {
+            height: 100vh; width: 100vw;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 5rem 6rem;
+            scroll-snap-align: start;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .slide-content { width: 100%; max-width: 1200px; position: relative; z-index: 2; }
+        
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: 24px;
+            padding: 2.5rem; transition: all 0.3s ease;
+        }
+        .card:hover { border-color: var(--glow-border); }
+
+        .grid-container { display: grid; gap: 2rem; width: 100%; }
+
+        /* ------------------------------ */
+        /* --- 3. TYPOGRAPHY & TEXT --- */
+        /* ------------------------------ */
+        h1, h2, h3, h4 { letter-spacing: -0.02em; }
+        h1 { font-family: var(--font-display); font-size: 5rem; line-height: 1.1; font-weight: 600; text-shadow: 0 0 30px rgba(0, 127, 255, 0.2); }
+        h2 { font-family: var(--font-display); font-size: 3.5rem; line-height: 1.2; font-weight: 600; }
+        h3 { font-size: 1.5rem; line-height: 1.3; font-weight: 600; }
+        p { font-size: 1.15rem; line-height: 1.7; color: var(--text-secondary); max-width: 700px; }
+
+        .kicker {
+            font-size: 1rem; font-weight: 600; margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .highlight-gradient {
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .highlight-text { color: var(--text-primary); font-weight: 500; }
+        
+        /* ------------------------------ */
+        /* --- 4. UI ELEMENTS & NAV --- */
+        /* ------------------------------ */
+        .header {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 2rem 6rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 100; font-weight: 600; transition: opacity 0.3s ease;
+        }
+        .logo { font-size: 1.2rem; }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+            width: 0%; z-index: 101; transition: width 0.2s ease-out;
+        }
+        #slide-nav {
+            position: fixed; right: 4rem; top: 50%; transform: translateY(-50%);
+            z-index: 100; display: flex; flex-direction: column; gap: 1rem;
+        }
+        .nav-btn {
+            width: 48px; height: 48px; border-radius: 50%;
+            border: 1px solid var(--border); background: var(--glass-bg);
+            backdrop-filter: blur(10px); color: var(--text-secondary);
+            cursor: pointer; transition: all 0.2s ease;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .nav-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.3); transform: scale(1.1); }
+        .nav-btn:disabled { opacity: 0.3; cursor: default; transform: scale(1); pointer-events: none; }
+
+        /* ------------------------------ */
+        /* --- 5. ANIMATIONS & INTERACTIVITY --- */
+        /* ------------------------------ */
+        .stagger { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .is-visible .stagger { opacity: 1; transform: translateY(0); }
+        .is-visible .stagger-1 { transition-delay: 0.1s; }
+        .is-visible .stagger-2 { transition-delay: 0.2s; }
+        .is-visible .stagger-3 { transition-delay: 0.3s; }
+        .is-visible .stagger-4 { transition-delay: 0.4s; }
+
+        /* Interactive Vulnerability Dashboard */
+        #slide-3 .slide-content { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 4rem; }
+        .status-dashboard { display: flex; flex-direction: column; gap: 1rem; }
+        .status-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.25rem 1.5rem; border-radius: 16px; border: 1px solid var(--border);
+            background: rgba(0,0,0,0.1); transition: all 0.5s ease;
+        }
+        .status-indicator { display: flex; align-items: center; gap: 0.75rem; font-weight: 600; text-transform: uppercase; font-size: 0.9rem;}
+        .status-indicator::before {
+            content: ''; width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse-green 2s infinite; transition: all 0.5s ease;
+        }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 5px var(--accent-green); } 50% { box-shadow: 0 0 15px var(--accent-green); } 100% { box-shadow: 0 0 5px var(--accent-green); } }
+        
+        .status-item.alert { border-color: var(--accent-orange); }
+        .status-item.alert .status-indicator { color: var(--accent-orange); }
+        .status-item.alert .status-indicator::before { background: var(--accent-orange); box-shadow: 0 0 10px var(--accent-orange); animation: pulse-orange 2s infinite; }
+        @keyframes pulse-orange { 0% { box-shadow: 0 0 5px var(--accent-orange); } 50% { box-shadow: 0 0 15px var(--accent-orange); } 100% { box-shadow: 0 0 5px var(--accent-orange); } }
+        
+        .status-item.critical { border-color: var(--accent-red); background: rgba(255,69,58,0.05); }
+        .status-item.critical .status-indicator { color: var(--accent-red); }
+        .status-item.critical .status-indicator::before { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 5px var(--accent-red); } 50% { box-shadow: 0 0 15px var(--accent-red); } 100% { box-shadow: 0 0 5px var(--accent-red); } }
+
+        /* Decision Matrix */
+        .matrix-table { width: 100%; margin-top: 2rem; border-collapse: collapse; background: rgba(0,0,0,0.1); border-radius: 16px; border: 1px solid var(--border); }
+        .matrix-table th, .matrix-table td { padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); text-align: center; }
+        .matrix-table tr:last-child td { border-bottom: none; }
+        .matrix-table th { font-family: var(--font-sans); font-weight: 500; color: var(--text-secondary); }
+        .matrix-table td { font-weight: 500; }
+        .matrix-table td:first-child { text-align: left; font-weight: 600; color: var(--text-primary); }
+        .matrix-table .score { font-size: 1.25rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 8px; }
+        .matrix-table .good { color: var(--accent-green); background-color: rgba(48, 209, 88, 0.1); }
+        .matrix-table .medium { color: var(--accent-orange); background-color: rgba(255, 159, 10, 0.1); }
+        .matrix-table .poor { color: var(--accent-red); background-color: rgba(255, 69, 58, 0.1); }
+        
+        /* S.T.A.R. UI Facsimile */
+        .simulator-ui { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; height: 60vh; width: 100%; }
+        .sim-sidebar { padding: 1.5rem; border-right: 1px solid var(--border); }
+        .sim-main { display: flex; flex-direction: column; gap: 1.5rem; }
+        .sim-control-group { margin-bottom: 1.5rem; }
+        .sim-control-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.75rem; }
+        .sim-control { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; width: 100%; color: var(--text-primary); }
+        .sim-kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .kpi-metric { padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px; }
+        .kpi-metric p { font-size: 1rem; margin-bottom: 0.5rem; color:var(--text-secondary); }
+        .kpi-metric h2 { font-family: var(--font-display); font-size: 2.5rem; }
+
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="progress-bar"></div>
+    <header class="header">
+        <div class="logo">ELEC-INDIA CORP.</div>
+        <div class="current-slide-title">Project Resilience</div>
+    </header>
+    <div id="slide-nav">
+        <button class="nav-btn" id="nav-up"><i data-lucide="arrow-up"></i></button>
+        <button class="nav-btn" id="nav-down"><i data-lucide="arrow-down"></i></button>
+    </div>
+
+    <div class="presentation-container" id="presentation-container">
+
+        <!-- SLIDE 1: Title -->
+        <section class="slide" id="slide-1" data-title="Project Resilience">
+            <div class="slide-content" style="text-align: center;">
+                <h1 class="stagger stagger-1">Project Resilience</h1>
+                <p class="stagger stagger-2" style="max-width: 700px; margin: 1rem auto 0 auto;">A Report by the Strategic Supply Chain Taskforce on Mitigating Geopolitical Risk</p>
+            </div>
+        </section>
+        
+        <!-- SLIDE 2: The Mandate -->
+        <section class="slide" id="slide-2" data-title="The Mandate">
+            <div class="slide-content">
+                <p class="kicker stagger stagger-1">Project Context</p>
+                <h2 class="stagger stagger-2">Our Mandate: Insulate ELEC-INDIA from Global Supply Shocks.</h2>
+                <p class="stagger stagger-3">As a leading Indian electronics manufacturer, our growth is intrinsically linked to the stability of the global semiconductor supply chain. Leadership tasked our team, the <span class="highlight-text">Strategic Supply Chain Taskforce</span>, to quantify our exposure to geopolitical disruptions and develop a robust, proactive framework to ensure production continuity.</p>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: The Core Vulnerability (INTERACTIVE) -->
+        <section class="slide" id="slide-3" data-title="Core Vulnerability">
+            <div class="slide-content">
+                <div class="vulnerability-text">
+                    <p class="kicker stagger stagger-1">Live System Analysis</p>
+                    <h2 class="stagger stagger-2">Our Core Vulnerability: The Single-Source Cascade.</h2>
+                    <p class="stagger stagger-3">Our primary threat is over-reliance on single suppliers. A single point of failure doesn't just halt one component; it triggers a cascading failure across the entire value chain. <br><br><span style="color:var(--text-primary); font-weight: 600;">(Scroll to simulate disruption)</span></p>
+                </div>
+                <div class="status-dashboard stagger stagger-4">
+                    <div class="status-item" id="status-1"><h3>Geopolitical Climate</h3><span class="status-indicator" id="indicator-1">Nominal</span></div>
+                    <div class="status-item" id="status-2"><h3>Primary Supplier (Taiwan)</h3><span class="status-indicator" id="indicator-2">Operational</span></div>
+                    <div class="status-item" id="status-3"><h3>Production Lines</h3><span class="status-indicator" id="indicator-3">Online</span></div>
+                    <div class="status-item" id="status-4"><h3>Revenue Forecast</h3><span class="status-indicator" id="indicator-4">On Target</span></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- SLIDE 4: The Data-Driven Decision -->
+        <section class="slide" id="slide-4" data-title="The Decision Framework">
+            <div class="slide-content">
+                <p class="kicker stagger stagger-1">The Decision Framework</p>
+                <h2 class="stagger stagger-2" style="text-align: center;">A Data-Driven Choice for a Data-Driven Problem</h2>
+                <p class="stagger stagger-3" style="text-align:center; max-width: 800px; margin: 1rem auto 0 auto;">We quantified three pathways against key strategic criteria. The data clearly indicated that building a dynamic simulation capability was the only viable long-term solution.</p>
+                <table class="matrix-table stagger stagger-4">
+                     <thead><tr><th>Evaluation Criteria</th><th>A: Stockpiling</th><th>B: Manual Analysis</th><th>C: Dynamic Simulation</th></tr></thead>
+                    <tbody>
+                        <tr><td>Agility (Response Speed)</td><td><span class="score poor">2/10</span></td><td><span class="score poor">1/10</span></td><td><span class="score good">9/10</span></td></tr>
+                        <tr><td>Accuracy (Depth of Insight)</td><td><span class="score poor">3/10</span></td><td><span class="score medium">5/10</span></td><td><span class="score good">9/10</span></td></tr>
+                        <tr><td>Foresight (Predictive Value)</td><td><span class="score poor">1/10</span></td><td><span class="score poor">2/10</span></td><td><span class="score good">10/10</span></td></tr>
+                        <tr><td>Scalability (Future-Proofing)</td><td><span class="score medium">6/10</span></td><td><span class="score poor">2/10</span></td><td><span class="score good">10/10</span></td></tr>
+                        <tr style="font-weight: bold;"><td><strong>TOTAL SCORE</strong></td><td><strong class="score poor">12</strong></td><td><strong class="score poor">10</strong></td><td><strong class="score good">38</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: Introducing STAR -->
+        <section class="slide" id="slide-5" data-title="The S.T.A.R. Engine">
+            <div class="slide-content" style="text-align: center;">
+                 <p class="kicker stagger stagger-1">The Deployed Solution</p>
+                 <h1 class="stagger stagger-2" style="font-size: 7rem;"><span class="highlight-gradient">S.T.A.R.</span></h1>
+                 <h3 class="stagger stagger-3" style="font-weight:500; color: var(--text-secondary);">Strategic Threat Assessment & Resilience Engine</h3>
+                 <p class="stagger stagger-4" style="max-width: 700px; margin: 2rem auto 0 auto; font-size: 1.15rem;">A bespoke business continuity tool, built with Python, to model geopolitical disruption and provide quantifiable, data-driven pathways to supply chain security.</p>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: S.T.A.R. UI Live Demo -->
+        <section class="slide" id="slide-6" data-title="S.T.A.R. Live Demo">
+            <div class="slide-content">
+                <p class="kicker stagger stagger-1">Live Demonstration</p>
+                <h2 class="stagger stagger-2">Simulating a "Taiwan Strait Conflict" Scenario</h2>
+                <div class="card simulator-ui stagger stagger-3">
+                    <div class="sim-sidebar">
+                        <h3 style="margin-bottom: 2rem;">Simulation Controls</h3>
+                        <div class="sim-control-group"><label>Critical Component</label><div class="sim-control">Mainboard Chipset</div></div>
+                        <div class="sim-control-group"><label>Disruption Event</label><div class="sim-control">Taiwan Strait Conflict</div></div>
+                        <div class="sim-control-group"><label>Export Ban Intensity</label><div class="sim-control">75%</div></div>
+                        <div class="sim-control-group"><label>Tariff Increase</label><div class="sim-control">25%</div></div>
+                    </div>
+                    <div class="sim-main">
+                        <div class="sim-kpi-grid">
+                            <div class="kpi-metric">
+                                <p>Baseline Risk (Single Source)</p>
+                                <h2 id="baseline-risk" style="color:var(--accent-red);">0%</h2>
+                            </div>
+                            <div class="kpi-metric">
+                                <p>Resilient Risk (Dual Source)</p>
+                                <h2 id="resilient-risk" style="color:var(--accent-green);">0%</h2>
+                            </div>
+                        </div>
+                        <div style="flex-grow: 1; position: relative;"><canvas id="riskProjectionChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: The Business Case Quadrant -->
+       <section class="slide" id="slide-7" data-title="The Business Case">
+    <div class="slide-content">
+        <p class="kicker stagger stagger-1">The Data-Driven Business Case</p>
+        <h2 class="stagger stagger-2" style="text-align: center;">The Journey to the Optimal Quadrant</h2>
+        <p class="stagger stagger-3" style="text-align:center; max-width: 800px; margin: 1rem auto 0 auto;">The S.T.A.R. Engine allows us to visualize our strategic journey. We move from a high-risk, untenable position to a low-risk, managed-cost "Resilient Quadrant"—a clear, defensible business decision.</p>
+        <div class="card stagger stagger-4" style="margin-top: 2rem; height: 500px; position: relative;">
+            <canvas id="quadrantChart"></canvas>
+        </div>
+    </div>
+</section>
+        
+        <!-- SLIDE 8: From Insight to Action -->
+        <section class="slide" id="slide-8" data-title="Actionable Output">
+            <div class="slide-content" style="text-align: center;">
+                <p class="kicker stagger stagger-1">From Insight to Action</p>
+                <h2 class="stagger stagger-2">The Engine's Output is a Clear, Actionable Plan.</h2>
+                <div class="card stagger stagger-3" style="margin-top: 2rem; text-align: left;">
+                    <h3 style="display: flex; align-items: center; gap: 0.75rem;"><i data-lucide="file-check-2"></i> Executive Briefing: Mainboard Chipset BCP</h3>
+                    <div class="grid-container" style="grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem;">
+                        <div>
+                            <h4 style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-red)"><i data-lucide="alert-triangle"></i>Situation Analysis</h4>
+                            <p style="font-size: 1rem;">Baseline strategy faces a <strong class="highlight-text">78.5% stockout risk</strong>—a critical threat to production.</p>
+                        </div>
+                        <div>
+                            <h4 style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-green)"><i data-lucide="shield-check"></i>Recommended Mitigation</h4>
+                            <p style="font-size: 1rem;">Dual-sourcing reduces risk to a manageable <strong class="highlight-text">14.2%</strong> for a marginal <strong class="highlight-text">8.1%</strong> cost increase.</p>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1.5rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem;"><i data-lucide="arrow-right-circle"></i>Immediate Action Plan</h4>
+                        <ol style="padding-left: 1.5rem; margin-top: 1rem;">
+                            <li style="font-size: 1rem; color: var(--text-secondary);"><strong>Approve</strong> the dual-sourcing strategy for the Mainboard Chipset.</li>
+                            <li style="font-size: 1rem; color: var(--text-secondary);"><strong>Initiate</strong> technical qualification and contracting with Intel Fab (USA).</li>
+                            <li style="font-size: 1rem; color: var(--text-secondary);"><strong>Procure</strong> a 60-day strategic buffer to ensure supply continuity.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: Conclusion -->
+        <section class="slide" id="slide-9" data-title="Conclusion">
+            <div class="slide-content" style="text-align: center;">
+                <h2 class="stagger stagger-1">We are not predicting the future.<br>We are building the capability to master it.</h2>
+                <p class="stagger stagger-2" style="max-width: 800px; margin: 2rem auto;">The S.T.A.R. Engine is the cornerstone of a new, resilient operational posture. It provides the foresight, agility, and data-driven confidence needed to navigate uncertainty and secure our market leadership for the decade to come.</p>
+                <p class="kicker stagger stagger-3" style="margin-top: 3rem;">TASK COMPLETE: CAPABILITY DELIVERED</p>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.getElementById('presentation-container');
+        const slides = document.querySelectorAll('.slide');
+        const header = document.querySelector('.header');
+        const progressBar = document.getElementById('progress-bar');
+        const navUp = document.getElementById('nav-up');
+        const navDown = document.getElementById('nav-down');
+        const currentSlideTitleEl = document.querySelector('.current-slide-title');
+        let currentSlide = 0;
+        let isNavigating = false;
+
+        // --- BACKGROUND ANIMATION ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function setupCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particles = [];
+            let numParticles = Math.floor(canvas.width / 30);
+            for(let i = 0; i < numParticles; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: Math.random() * 0.2 - 0.1,
+                    vy: Math.random() * 0.2 - 0.1,
+                    radius: Math.random() * 1.5 + 0.5
+                });
+            }
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fill();
+
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p2 = particles[j];
+                    const distance = Math.sqrt(Math.pow(p.x - p2.x, 2) + Math.pow(p.y - p2.y, 2));
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = `rgba(0, 127, 255, ${1 - distance / 100})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(drawCanvas);
+        }
+
+        // --- CORE NAVIGATION & UI ---
+        function updateUI() {
+            const progress = (currentSlide / (slides.length - 1)) * 100;
+            progressBar.style.width = `${progress}%`;
+            const newTitle = slides[currentSlide].dataset.title || 'Project Resilience';
+            currentSlideTitleEl.textContent = newTitle;
+            navUp.disabled = currentSlide === 0;
+            navDown.disabled = currentSlide === slides.length - 1;
+            header.style.opacity = (currentSlide === 0) ? 0 : 1;
+
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('is-visible', index === currentSlide);
+                if (index === currentSlide) {
+                    triggerAnimations(slide);
+                }
+            });
+        }
+        
+        function navigate(direction) {
+            if (isNavigating) return;
+            const nextSlide = currentSlide + direction;
+            if (nextSlide >= 0 && nextSlide < slides.length) {
+                isNavigating = true;
+                slides[nextSlide].scrollIntoView({ behavior: 'smooth' });
+                container.addEventListener('scrollend', () => isNavigating = false, { once: true });
+            }
+        }
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+                    const index = Array.from(slides).indexOf(entry.target);
+                    if (index !== currentSlide) {
+                        currentSlide = index;
+                        updateUI();
+                    }
+                }
+            });
+        }, { threshold: 0.6 });
+
+        // --- EVENT LISTENERS ---
+        navUp.addEventListener('click', () => navigate(-1));
+        navDown.addEventListener('click', () => navigate(1));
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); navigate(1); } 
+            else if (e.key === 'ArrowUp') { e.preventDefault(); navigate(-1); }
+        });
+        window.addEventListener('resize', setupCanvas);
+
+        // --- INTERACTIVE SCROLL ANIMATIONS ---
+        const vulnerabilitySlide = document.getElementById('slide-3');
+        const statuses = {
+            s1: { el: document.getElementById('status-1'), ind: document.getElementById('indicator-1'), text: 'Event Detected' },
+            s2: { el: document.getElementById('status-2'), ind: document.getElementById('indicator-2'), text: 'Supply Cut' },
+            s3: { el: document.getElementById('status-3'), ind: document.getElementById('indicator-3'), text: 'Offline' },
+            s4: { el: document.getElementById('status-4'), ind: document.getElementById('indicator-4'), text: 'At Risk' },
+        };
+        const defaultTexts = { i1: 'Nominal', i2: 'Operational', i3: 'Online', i4: 'On Target' };
+
+        container.addEventListener('scroll', () => {
+            const rect = vulnerabilitySlide.getBoundingClientRect();
+            if (rect.top <= 0 && rect.bottom >= vulnerabilitySlide.offsetHeight * 0.2) {
+                const scrollProgress = Math.min(1, Math.max(0, -rect.top / (vulnerabilitySlide.offsetHeight * 0.6)));
+                const updateStatus = (progress, threshold, status, newClass, defaultTextKey) => {
+                    const { el, ind, text } = status;
+                    if (progress > threshold) {
+                        el.classList.add(newClass); ind.textContent = text;
+                    } else {
+                        el.classList.remove(newClass); ind.textContent = defaultTexts[defaultTextKey];
+                    }
+                };
+                updateStatus(scrollProgress, 0.1, statuses.s1, 'alert', 'i1');
+                updateStatus(scrollProgress, 0.3, statuses.s2, 'critical', 'i2');
+                updateStatus(scrollProgress, 0.5, statuses.s3, 'critical', 'i3');
+                updateStatus(scrollProgress, 0.7, statuses.s4, 'alert', 'i4');
+            }
+        });
+        
+        // --- CHART & ANIMATION INITIALIZATION ---
+        function triggerAnimations(slide) {
+            if (slide.id === 'slide-6' && !document.getElementById('riskProjectionChart')._chart) {
+                animateValue(document.getElementById('baseline-risk'), 0, 78.5, 1200, true);
+                animateValue(document.getElementById('resilient-risk'), 0, 14.2, 1200, true);
+                initRiskProjectionChart();
+            }
+            if (slide.id === 'slide-7' && !document.getElementById('quadrantChart')._chart) {
+                initQuadrantChart();
+            }
+        }
+
+        function animateValue(obj, start, end, duration, isFloat = false) {
+            if (!obj) return;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                let currentValue = progress * (end - start) + start;
+                obj.innerHTML = (isFloat ? currentValue.toFixed(1) : Math.floor(currentValue)) + '%';
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+        
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
+        
+        function initRiskProjectionChart() {
+            const ctx = document.getElementById('riskProjectionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+                    datasets: [
+                        { label: 'Baseline Risk Projection', data: [15, 20, 55, 78.5], borderColor: 'rgba(255, 69, 58, 0.8)', tension: 0.4, fill: false, pointBackgroundColor: 'rgba(255, 69, 58, 1)', pointRadius: 4 },
+                        { label: 'Resilient Risk Projection', data: [12, 13, 15, 14.2], borderColor: 'rgba(48, 209, 88, 0.8)', tension: 0.4, fill: false, pointBackgroundColor: 'rgba(48, 209, 88, 1)', pointRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, color: '#a0b0c4' } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#a0b0c4' } },
+                        y: { title: { display: true, text: 'Stockout Risk (%)', color: '#a0b0c4' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#a0b0c4' }, beginAtZero: true }
+                    },
+                    animation: { duration: 1000, delay: 500 }
+                }
+            });
+        }
+        
+        function initQuadrantChart() {
+            const ctx = document.getElementById('quadrantChart').getContext('2d');
+            Chart.register(ChartjsPluginAnnotation);
+            const quadrantData = {
+                datasets: [
+                    { label: 'Baseline', data: [{x: 25.0, y: 78.5}], backgroundColor: 'rgba(255, 69, 58, 0.9)', pointRadius: 10, pointHoverRadius: 12 },
+                    { label: 'Resilient', data: [{x: 27.5, y: 14.2}], backgroundColor: 'rgba(48, 209, 88, 0.9)', pointRadius: 10, pointHoverRadius: 12 }
+                ]
+            };
+            const quadrantOptions = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { usePointStyle: true, color: '#a0b0c4', padding: 20 } },
+                    tooltip: {
+                        backgroundColor: 'rgba(10, 13, 18, 0.8)', titleFont: { weight: '600' }, bodyFont: { weight: '500' }, padding: 12,
+                        callbacks: { label: ctx => ` Cost: $${ctx.parsed.x.toFixed(2)}, Risk: ${ctx.parsed.y.toFixed(1)}%` }
+                    },
+                    annotation: {
+                        annotations: {
+                            highRisk: { type: 'box', xMin: 24, xMax: 27, yMin: 50, yMax: 100, backgroundColor: 'rgba(255, 69, 58, 0.05)' },
+                            optimal: { type: 'box', xMin: 27, xMax: 30, yMin: 0, yMax: 50, backgroundColor: 'rgba(48, 209, 88, 0.05)' },
+                            highRiskLabel: { type: 'label', xValue: 24.5, yValue: 95, content: 'High Risk', color: 'rgba(255, 69, 58, 0.7)', font: { size: 12, weight: '600' } },
+                            optimalLabel: { type: 'label', xValue: 29.5, yValue: 5, content: 'Resilient Quadrant', color: 'rgba(48, 209, 88, 0.7)', font: { size: 12, weight: '600' } },
+                            journeyArrow: { type: 'arrow', xMin: 25.2, yMin: 76.5, xMax: 27.3, yMax: 16.2, end: { display: true, width: 8, length: 10 }, borderColor: 'rgba(0, 127, 255, 0.7)', borderWidth: 2 },
+                            journeyLabel: { type: 'label', xValue: 26.2, yValue: 50, content: 'Journey to Resilience', color: '#fff', font: { size: 14, weight: '600' }, rotation: -40 }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Landed Cost per Unit ($)', color: '#a0b0c4' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#a0b0c4' }, min: 24, max: 30 },
+                    y: { title: { display: true, text: 'Stockout Risk (%)', color: '#a0b0c4' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: '#a0b0c4' }, beginAtZero: true, max: 100 }
+                },
+                animation: { duration: 1200, delay: 400 }
+            };
+            new Chart(ctx, { type: 'scatter', data: quadrantData, options: quadrantOptions });
+        }
+        function initQuadrantChart() {
+    const ctx = document.getElementById('quadrantChart').getContext('2d');
+    
+    const quadrantData = {
+        datasets: [
+            {
+                label: 'Baseline (High Risk)',
+                data: [{x: 25.0, y: 78.5}],
+                backgroundColor: 'rgba(255, 69, 58, 0.9)',
+                pointRadius: 12,
+                pointHoverRadius: 15
+            },
+            {
+                label: 'Resilient (Optimized)',
+                data: [{x: 27.5, y: 14.2}],
+                backgroundColor: 'rgba(48, 209, 88, 0.9)',
+                pointRadius: 12,
+                pointHoverRadius: 15
+            }
+        ]
+    };
+    
+    const chart = new Chart(ctx, {
+        type: 'scatter',
+        data: quadrantData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        color: '#a0b0c4',
+                        padding: 20,
+                        font: { size: 14, weight: '600' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 13, 18, 0.9)',
+                    titleColor: '#f1f3f6',
+                    bodyColor: '#a0b0c4',
+                    callbacks: {
+                        label: ctx => ` Cost: $${ctx.parsed.x.toFixed(1)}, Risk: ${ctx.parsed.y.toFixed(1)}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Landed Cost per Unit ($)', color: '#a0b0c4' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#a0b0c4' },
+                    min: 24, max: 30
+                },
+                y: {
+                    title: { display: true, text: 'Stockout Risk (%)', color: '#a0b0c4' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#a0b0c4' },
+                    beginAtZero: true, max: 100
+                }
+            },
+            animation: { duration: 1200, delay: 400 }
+        },
+        plugins: [{
+            beforeDraw: function(chart) {
+                const ctx = chart.ctx;
+                const chartArea = chart.chartArea;
+                const yAxis = chart.scales.y;
+                
+                // High Risk Quadrant
+                ctx.save();
+                ctx.fillStyle = 'rgba(255, 69, 58, 0.05)';
+                ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, yAxis.getPixelForValue(50) - chartArea.top);
+                
+                // Resilient Quadrant
+                ctx.fillStyle = 'rgba(48, 209, 88, 0.05)';
+                ctx.fillRect(chartArea.left, yAxis.getPixelForValue(50), chartArea.right - chartArea.left, chartArea.bottom - yAxis.getPixelForValue(50));
+                
+                // Labels
+                ctx.font = '12px Inter';
+                ctx.fillStyle = 'rgba(255, 69, 58, 0.7)';
+                ctx.fillText('High Risk Zone', chartArea.left + 20, chartArea.top + 30);
+                ctx.fillStyle = 'rgba(48, 209, 88, 0.7)';
+                ctx.fillText('Resilient Quadrant', chartArea.left + 20, chartArea.bottom - 20);
+                
+                ctx.restore();
+            }
+        }]
+    });
+    document.getElementById('quadrantChart')._chart = chart;
+}
+        
+        // --- INITIALIZE ---
+        function init() {
+            setupCanvas();
+            drawCanvas();
+            slides.forEach(slide => observer.observe(slide));
+            updateUI();
+            lucide.createIcons();
+        }
+
+        init();
+    });
+    </script>
+</body>
+</html>
